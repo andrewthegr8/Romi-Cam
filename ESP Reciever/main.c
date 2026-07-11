@@ -54,6 +54,7 @@ typedef struct {
 
 //PACKET CONFIG
 #define NUMROMIS 50 //Max ID number that can occur/ max number of Romis we can have in a packet
+//^WE NEED THIS TO BE 50 TO DETECT UP TO ID NUMBER 49, not because we expect to get pose data for 50 Romis
 //Pose data type - for easily storing pose data in memory
 typedef struct {
             struct{ //Data for each Romi - 12 bytes each (center x, center y, heading)

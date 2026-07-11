@@ -20,7 +20,7 @@ ESP32 Receiver on Romi
 STM32 on Romi
 ```
 
-For background and validation details, see the thesis document associated with this project. This README focuses only on code deployment, repository contents, and physical device connections. Earlier Raspberry Pi development code is available in the related development repository: [Romi-Cam](https://github.com/andrewthegr8/Romi-Cam).
+For background and validation details, see the thesis document associated with this project. This README focuses only on code deployment, repository contents, and physical device connections. Earlier Raspberry Pi development code is available in the related development repository: [RomiCam](https://github.com/andrewthegr8/RomiCam).
 
 ---
 
@@ -57,9 +57,9 @@ ROMI-CAM/
 
 | Path | Purpose |
 | --- | --- |
-| `ESP Receiver/main.c` | ESP32 firmware for the board mounted on Romi. It receives ESP-NOW pose packets and responds to STM32 UART pose requests. The source log tag is `"Reciever"` in the code. |
-| `ESP Transmitter/main.c` | ESP32 firmware for the board connected to the Raspberry Pi. It acts as an SPI peripheral and broadcasts received pose packets over ESP-NOW. The source log tag is `"Transmitter"`. |
-| `Raspberry Pi/RomiTrackerV9.py` | Main Raspberry Pi runtime script. It initializes the camera, runs the tracking callback, prints the pose table, and sends pose packets over SPI. |
+| `ESP Receiver/main.c` | ESP32 firmware for the board mounted on Romi. It receives ESP-NOW pose packets and responds to STM32 UART pose requests.  |
+| `ESP Transmitter/main.c` | ESP32 firmware for the board connected to the Raspberry Pi. It acts as an SPI peripheral and broadcasts received pose packets over ESP-NOW. |
+| `Raspberry Pi/RomiTrackerV9.py` | Main Raspberry Pi runtime script. It initializes the camera, runs the tracking callback, prints pose data to the terminal, and sends pose packets over SPI. |
 | `Raspberry Pi/RomiTrackerV9_helper.py` | Helper code for calibration-file loading, ArUco detection setup, marker-to-world coordinate conversion, heading calculation, terminal display formatting, and packet construction. |
 | `Raspberry Pi/K.json` | Camera intrinsic matrix used by the Raspberry Pi tracker. Keep this file in the Raspberry Pi working directory. |
 | `Raspberry Pi/D.json` | Camera distortion coefficients used by the Raspberry Pi tracker. Keep this file in the Raspberry Pi working directory. |
@@ -80,7 +80,6 @@ This deployment uses the following device roles:
 | ESP32-WROOM-32 development board, transmitter | Receives SPI data from the Raspberry Pi and broadcasts the packet using ESP-NOW. |
 | ESP32-WROOM-32 development board, receiver | Receives ESP-NOW packets on the Romi and serves the latest pose data to the STM32 over UART. |
 | STM32 on Romi | Requests pose data for a given Romi marker ID over UART. |
-| Romi robot | Mobile robot carrying an ArUco marker and the ESP32 receiver. |
 | Final marker board / calibration pattern | Fixed ArUco marker pattern used by the Raspberry Pi code to locate the world frame. |
 
 ### Power and Logic Levels
@@ -106,15 +105,15 @@ The Raspberry Pi code was developed on:
 | Python | 3.11.2 |
 | `cv2` | 4.9.0 |
 | `numpy` | 1.24.2 |
-| `picamera2` | Debian/Raspberry Pi package, version not reported by module |
+| `picamera2` | 0.0.31 |
 | `spidev` | 3.8 |
-| `gpiozero` | Debian/Raspberry Pi package, version not reported by module |
+| `gpiozero` | 2.0.1 |
 
-The script was developed with older versions of some libraries. Use versions close to the known working setup when possible, and avoid upgrading all Python packages unless you are prepared to retest the camera and SPI pipeline.
+The script was developed with older versions of some libraries. If you don't use versions close to these, be prepared to retest the camera and SPI pipeline.
 
 ### Install Python Dependencies
 
-APT packages are preferred when available, especially for Raspberry Pi camera support.
+APT packages are preferred when available, especially for libraries that interface with Raspberry Pi hardware.
 
 From the repository root on the Raspberry Pi:
 
@@ -199,7 +198,7 @@ Current Raspberry Pi runtime settings in `RomiTrackerV9.py`:
 | SPI transfer size | 256 bytes, with the valid packet padded using zero bytes |
 | Profiling GPIO in Python | GPIO 21 through `gpiozero.LED(21)` |
 
-Stop the tracker with `Ctrl+C`.
+Stop the tracker with `Ctrl+C`. The current implementation doesn't have all threads exit gracefully, so you'll have to hit `Ctrl+C` a few times and wait for all the threads to hit an exception.
 
 ---
 
@@ -230,12 +229,12 @@ Use the files in `Support Files/` for the physical setup:
 | File / Folder | Use |
 | --- | --- |
 | `Support Files/RealMarkerBoard.ai` | Editable Adobe Illustrator version of the final marker board. |
-| `Support Files/RealMarkerBoard.pdf` | Printable PDF version of the final marker board. |
+| `Support Files/RealMarkerBoard.pdf` | Printable PDF version of the final marker board. (36 inches by 72 inches) - PRINT AT FULL SCALE! |
 | `Support Files/CAD/romi-ARUCO-mount.SLDASM` | Romi ArUco marker mount assembly. |
 | `Support Files/CAD/RomiMountv1.3MF` | 3MF version of the Romi marker mount. |
 | `Support Files/CAD/NewCameraMount.SLDASM` / `.STL` | Camera/Raspberry Pi mounting hardware for the wooden stand. |
 | `Support Files/CAD/romi-chassis-kit.step` | Romi chassis reference geometry. |
-| `Support Files/CAD/threads.SLDPRT` / `.STL` | Thread geometry used by the support hardware. |
+| `Support Files/CAD/threads.SLDPRT` / `.STL` | 3-D printable fasteners to constrain the mount of the wooden stand. |
 
 If the marker board is printed at a different scale, the fixed marker dimensions or positions change, or the Romi marker height changes, update the corresponding constants in `RomiTrackerV9_helper.py` before running the system.
 
@@ -264,7 +263,7 @@ Both ESP32 programs use ESP-NOW on Wi-Fi channel 1. The transmitter sends to the
 FF:FF:FF:FF:FF:FF
 ```
 
-That is intentional. Any ESP32 receiver running the matching receiver firmware and listening on the same channel can receive the pose packets. This allows multiple Romis to receive the same broadcast stream without pairing each transmitter/receiver pair by MAC address.
+That is intentional. Any ESP32 receiver running the matching receiver firmware and listening on the same Wi-Fi channel can receive the pose packets. This allows multiple Romis to receive the same broadcast stream without pairing each transmitter/receiver pair by MAC address.
 
 ---
 
@@ -272,7 +271,7 @@ That is intentional. Any ESP32 receiver running the matching receiver firmware a
 
 The Raspberry Pi is the SPI controller. The ESP32 transmitter is the SPI peripheral.
 
-| Raspberry Pi Pin | Raspberry Pi Function | ESP32 Transmitter Pin | ESP32 Code Define |
+| Raspberry Pi Pin | Raspberry Pi Function | ESP32 Transmitter Pin | ESP32 Function |
 | --- | --- | --- | --- |
 | BCM GPIO 10 | SPI0 MOSI | GPIO 23 | `GPIO_MOSI` |
 | BCM GPIO 9 | SPI0 MISO | GPIO 19 | `GPIO_MISO` |
@@ -296,10 +295,10 @@ The ESP32 receiver uses `UART_NUM_2` on the ESP32 side and communicates with the
 
 Power the ESP32 receiver from the STM32 board's 5 V output as used in the deployed system, but keep the UART signal lines at 3.3 V logic.
 
-Use the following STM32 MicroPython UART setup pattern. The `Pin.cpu.C4` and `Pin.cpu.C5` lines are included because of the UART3 remapping behavior in this setup.
+If you wish to use these exact pins for UART on the STM32, follow this MicroPython setup pattern. The `Pin.cpu.C4` and `Pin.cpu.C5` lines are included because these are the default pins for UART3 and have to be remapped after the `UART` object is instantiated if alternate pins are being used.
 
 ```python
-from machine import Pin, UART
+from pyb import Pin, UART
 from ESP_Comm import ESP_Comm
 
 # ROMIID must match the ArUco marker ID mounted on the Romi.
@@ -384,7 +383,7 @@ The ESP32 receiver stores the most recent pose by marker ID. When the STM32 requ
 
 ## Code Configuration Values Most Likely to Change
 
-Future students should keep these values synchronized across the repository when extending the project.
+Future contributors should keep these values synchronized across the repository when extending the project.
 
 | Change | Files to Inspect |
 | --- | --- |
@@ -420,6 +419,4 @@ When changing the packet layout, update all layers together: Raspberry Pi packet
 
 ## Notes for Future Development
 
-The current code is organized around a working deployment, not a general-purpose library. The values in the Python helper, ESP32 firmware, and STM32 helper are tightly coupled to the deployed wiring, marker IDs, packet format, and calibration files.
-
-For substantial changes, especially changes to the packet format or marker pattern, update one device layer at a time and keep the current working deployment available as a reference.
+The current code is organized around a working deployment, not a general-purpose library. The values in the Python helper, ESP32 firmware, and STM32 helper are tightly coupled to the deployed wiring, marker IDs, packet format, and calibration files. Deviations from the exact setup described here will likely require (potentailly extensive) code changes to get the system working again.
