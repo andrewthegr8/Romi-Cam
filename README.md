@@ -419,4 +419,4 @@ When changing the packet layout, update all layers together: Raspberry Pi packet
 
 ## Notes for Future Development
 
-The current code is organized around a working deployment, not a general-purpose library. The values in the Python helper, ESP32 firmware, and STM32 helper are tightly coupled to the deployed wiring, marker IDs, packet format, and calibration files. Deviations from the exact setup described here will likely require (potentailly extensive) code changes to get the system working again.
+The current code is organized around a working deployment, not a general-purpose library. The values in the Python helper, ESP32 firmware, and STM32 helper are tightly coupled to the deployed wiring, marker IDs, packet format, and calibration files. Deviations from the exact setup described here will likely require (potentially extensive) code changes to get the system working again.
